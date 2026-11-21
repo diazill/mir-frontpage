@@ -1,26 +1,110 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Design tokens. Components use these names (bg-brand, text-muted, border-line)
+ * instead of raw hex values. Text colors are checked for WCAG AA (4.5:1) on
+ * canvas, surface, sand and brand-tint backgrounds.
+ */
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+
+  /* Brand green */
+  --color-brand: #1e513c;
+  --color-brand-strong: #173e2e;
+  --color-brand-soft: #e9eddf;
+  --color-brand-tint: #f0f3eb;
+  --color-sage: #4c6b55;
+
+  /* Text */
+  --color-ink: #21372b;
+  --color-ink-soft: #304539;
+  --color-body: #526056;
+  --color-muted: #5f6b62;
+
+  /* Terracotta accent: `accent` is safe for text, `accent-mark` is decorative. */
+  --color-accent: #a2552e;
+  --color-accent-mark: #d18655;
+
+  /* Taken from the real shopfront: the maroon "Sedia:" banner and tape. */
+  --color-banner: #8a2d35;
+  --color-tape: #eadfc6;
+
+  /* Surfaces and lines */
+  --color-canvas: #fbfaf6;
+  --color-surface: #ffffff;
+  --color-sand: #f5f4ed;
+  --color-cream: #fffdf8;
+  --color-line: #e8e5dc;
+  --color-line-strong: #cfd8c9;
+
+  /* Status */
+  --color-success: #27643d;
+  --color-success-tint: #e6f2e8;
+  --color-success-dot: #3d8b54;
+  --color-danger: #9b5543;
+  --color-danger-tint: #f5e9e5;
+  --color-danger-dot: #b96b55;
+  --color-notice: #6b5640;
+  --color-notice-tint: #fffaf0;
+  --color-notice-line: #e5d7c3;
+
+  /* Brand strip: slides right by one copy of the list, then repeats. */
+  --animate-marquee-right: marquee-right 40s linear infinite;
+
+  @keyframes marquee-right {
+    from {
+      transform: translateX(-50%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  /* Elevation scale */
+  --shadow-card: 0 12px 30px -22px rgb(24 62 43 / 0.42);
+  --shadow-pop: 0 20px 50px -20px rgb(27 58 40 / 0.32);
+  --shadow-hero: 0 28px 70px -35px rgb(27 58 40 / 0.5);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  html {
+    /* Keeps anchor targets clear of the sticky header. */
+    scroll-padding-top: 10rem;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+
+  .on-dark :focus-visible {
+    outline-color: #ffffff;
+  }
+
+  button:not(:disabled),
+  summary,
+  [role="option"] {
+    cursor: pointer;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
