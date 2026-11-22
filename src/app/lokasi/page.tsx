@@ -1,18 +1,35 @@
 import type { Metadata } from "next";
 import { ExternalIcon, PinIcon } from "@/components/icons";
-import { STORE, STORE_FULL_ADDRESS, STORE_HOURS_SUMMARY } from "@/lib/site";
+import { lowerFirst } from "@/lib/site";
+import { getStoreInfo } from "@/lib/store";
 import StoreHours from "./store-hours";
 
-export const metadata: Metadata = {
-  title: "Lokasi & Jam Buka",
-  description: `Lokasi toko MIR Pakan Ternak di ${STORE.shortAddress}. Buka ${STORE_HOURS_SUMMARY}.`,
-  alternates: { canonical: "/lokasi" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const store = await getStoreInfo();
+  return {
+    title: "Lokasi & Jam Buka",
+    description: `Lokasi toko ${store.name} di ${store.shortAddress}. Buka ${store.hoursSummary}.`,
+    alternates: { canonical: "/lokasi" },
+  };
+}
 
-const mapUrl =
+const DEFAULT_MAP_URL =
   "https://www.openstreetmap.org/export/embed.html?bbox=110.485%2C-7.385%2C110.555%2C-7.335&layer=mapnik&marker=-7.3617390992416585%2C110.52008103236403";
 
-export default function StoreLocationPage() {
+/** OpenStreetMap embed around a point, about 3.5 km wide. */
+function osmEmbedUrl(lat: number, lng: number) {
+  const bbox = [lng - 0.035, lat - 0.025, lng + 0.035, lat + 0.025].map((n) => n.toFixed(5)).join(",");
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${lat},${lng}`;
+}
+
+export default async function StoreLocationPage() {
+  const store = await getStoreInfo();
+  // The embedded map centres on the stored coordinates.
+  const mapUrl =
+    store.latitude !== null && store.longitude !== null
+      ? osmEmbedUrl(store.latitude, store.longitude)
+      : DEFAULT_MAP_URL;
+
   return (
     <section className="bg-canvas px-4 py-12 sm:px-8 sm:py-16">
       <div className="mx-auto max-w-7xl">
@@ -21,12 +38,18 @@ export default function StoreLocationPage() {
             Lokasi &amp; jam buka
           </h1>
           <p className="mt-4 text-base leading-7 text-body">
-            Toko MIR ada di {STORE.shortAddress}, sebelah {STORE.landmark}.
-            Buka {STORE_HOURS_SUMMARY}.
+            Toko MIR ada di {store.shortAddress}
+            {store.landmark ? `, ${lowerFirst(store.landmark)}` : ""}.
+            Buka {store.hoursSummary}.
           </p>
         </div>
 
-        <StoreHours />
+        <StoreHours
+          closures={store.closures}
+          initialStatus={store.status}
+          schedule={store.schedule}
+          timezone={store.timezone}
+        />
 
         <section aria-labelledby="alamat-toko" className="mt-12 sm:mt-16">
           <h2 className="mb-5 text-xl font-semibold text-ink sm:text-2xl" id="alamat-toko">
@@ -45,11 +68,11 @@ export default function StoreLocationPage() {
                 <PinIcon className="h-6 w-6" />
               </span>
               <address className="mt-5 text-base not-italic leading-7 text-body">
-                {STORE_FULL_ADDRESS}
+                {store.fullAddress}
               </address>
               <a
                 className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 self-start rounded-full bg-brand px-5 text-sm font-semibold text-white transition-colors hover:bg-brand-strong"
-                href={STORE.mapsUrl}
+                href={store.mapsUrl}
                 rel="noreferrer"
                 target="_blank"
               >

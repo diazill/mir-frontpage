@@ -4,6 +4,10 @@ Dari: proyek Next.js `mirshop_app` (toko online)
 Untuk: proyek Laravel `mirshop-dashboard`
 Tanggal: 20 November 2026
 
+> **Status (22 November 2026):** bagian 1–4 dan 7 sudah live dan sudah dipakai
+> storefront. Bagian 5 (satuan) menunggu keputusan owner di bagian 6. Kekurangan
+> yang tersisa ada di [kebutuhan-api-tahap-2b.md](kebutuhan-api-tahap-2b.md).
+
 Semua endpoint di bawah **publik** (tanpa login), hanya `GET`, memakai prefix `/api/v1`,
 pola error `{code, message, errors}`, dan rate limit yang sama dengan `GET /products`.
 Next.js memanggil semuanya dari server lalu menyimpannya di cache sekitar 1 menit,

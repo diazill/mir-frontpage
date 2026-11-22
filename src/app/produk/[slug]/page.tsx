@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import Link from "next/link";
 import Breadcrumb from "@/components/breadcrumb";
 import CatalogError from "@/components/catalog-error";
@@ -8,8 +8,9 @@ import { formatPrice, formatWeight } from "@/lib/format";
 import ProductGallery from "./product-gallery";
 import ProductInquiry from "./product-inquiry";
 import ProductShare from "./product-share";
-import { getStorefrontCatalog, type StorefrontProduct } from "@/lib/catalog";
+import { getProduct, getStorefrontCatalog, type StorefrontProduct } from "@/lib/catalog";
 import JsonLd from "@/lib/json-ld";
+import { getStoreInfo } from "@/lib/store";
 import {
   absoluteUrl,
   BASE_OPEN_GRAPH,
@@ -29,33 +30,35 @@ export const ensureStatic = "navigation";
 export const instant = false;
 
 type ProductPageProps = {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
 };
 
 // Cache Components requires at least one param. Known products are prerendered
-// at build time; other ids render on first request and are then saved.
-// The placeholder keeps the build working when the API is unreachable and
-// resolves to notFound() below.
+// at build time; other keys (old slugs, numeric ids from shared links) render
+// on first request and redirect. The placeholder keeps the build working when
+// the API is unreachable and resolves to notFound() below.
+/**
+ * Looks the product up in the cached catalog list first, so prerendering every
+ * product costs one list request instead of one request per product. Only keys
+ * the list does not know (numeric ids, old slugs, missing products) go to
+ * `GET /products/{key}`, which also resolves them for the redirect.
+ */
+async function findProduct(key: string) {
+  const catalog = await getStorefrontCatalog();
+  const product = catalog.products.find((item) => item.slug === key);
+  return product ? { product, error: null } : getProduct(key);
+}
+
 export async function generateStaticParams() {
   const { products } = await getStorefrontCatalog();
   return products.length > 0
-    ? products.map((product) => ({ id: product.id }))
-    : [{ id: "__placeholder__" }];
+    ? products.map((product) => ({ slug: product.slug }))
+    : [{ slug: "__placeholder__" }];
 }
 
-async function findProduct(id: string) {
-  const catalog = await getStorefrontCatalog();
-  return {
-    catalog,
-    product: catalog.products.find((product) => product.id === id),
-  };
-}
-
-export async function generateMetadata({
-  params,
-}: ProductPageProps): Promise<Metadata> {
-  const { id } = await params;
-  const { product } = await findProduct(id);
+export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const { product } = await findProduct(slug);
 
   if (!product) {
     return { title: "Produk tidak ditemukan" };
@@ -63,26 +66,25 @@ export async function generateMetadata({
 
   const description =
     product.blurb?.trim() ||
-    `${product.title}${product.brand ? ` dari ${product.brand}` : ""}. Lihat harga dan ketersediaan produk di ${SITE_NAME}.`;
+    `${product.title}${product.brand ? ` dari ${product.brand.name}` : ""}. Lihat harga dan ketersediaan produk di ${SITE_NAME}.`;
+  const path = `/produk/${product.slug}`;
 
   return {
     title: product.title,
     description,
-    alternates: { canonical: `/produk/${product.id}` },
+    alternates: { canonical: path },
     openGraph: {
       ...BASE_OPEN_GRAPH,
       title: `${product.title} | ${SITE_NAME}`,
       description,
-      url: `/produk/${product.id}`,
-      images: [
-        product.image ? { url: product.image, alt: product.title } : DEFAULT_OG_IMAGE,
-      ],
+      url: path,
+      images: [product.image ? { url: product.image, alt: product.title } : DEFAULT_OG_IMAGE],
     },
   };
 }
 
 function productJsonLd(product: StorefrontProduct) {
-  const url = absoluteUrl(`/produk/${product.id}`);
+  const url = absoluteUrl(`/produk/${product.slug}`);
   const images = product.images.length
     ? product.images.map((image) => absoluteUrl(image.url))
     : product.image
@@ -98,8 +100,8 @@ function productJsonLd(product: StorefrontProduct) {
     url,
     image: images,
     description: product.blurb?.trim() || undefined,
-    category: product.category || undefined,
-    brand: product.brand ? { "@type": "Brand", name: product.brand } : undefined,
+    category: product.category?.name,
+    brand: product.brand ? { "@type": "Brand", name: product.brand.name } : undefined,
     weight: {
       "@type": "QuantitativeValue",
       value: product.weightGram,
@@ -120,7 +122,7 @@ function productJsonLd(product: StorefrontProduct) {
   };
 }
 
-function ProductDetail({ product }: { product: StorefrontProduct }) {
+function ProductDetail({ product, whatsapp }: { product: StorefrontProduct; whatsapp: string }) {
   const inStock = product.stockStatus === "tersedia";
 
   return (
@@ -131,7 +133,7 @@ function ProductDetail({ product }: { product: StorefrontProduct }) {
             { label: "Beranda", href: "/" },
             { label: "Produk", href: "/produk" },
             ...(product.category
-              ? [{ label: product.category, href: `/produk?category=${encodeURIComponent(product.category)}` }]
+              ? [{ label: product.category.name, href: `/produk?kategori=${encodeURIComponent(product.category.slug)}` }]
               : []),
             { label: product.title },
           ]}
@@ -167,15 +169,15 @@ function ProductDetail({ product }: { product: StorefrontProduct }) {
               {product.brand && (
                 <Link
                   className="font-semibold text-sage hover:text-brand"
-                  href={`/produk?brand=${encodeURIComponent(product.brand)}`}
+                  href={`/produk?brand=${encodeURIComponent(product.brand.slug)}`}
                 >
-                  {product.brand}
+                  {product.brand.name}
                 </Link>
               )}
               {product.brand && <span aria-hidden="true">·</span>}
               {product.category && (
                 <>
-                  <span>{product.category}</span>
+                  <span>{product.category.name}</span>
                   <span aria-hidden="true">·</span>
                 </>
               )}
@@ -186,8 +188,13 @@ function ProductDetail({ product }: { product: StorefrontProduct }) {
               {formatPrice(product.price)}
             </p>
 
-            <ProductInquiry productId={product.id} stockStatus={product.stockStatus} title={product.title} />
-            <ProductShare title={product.title} url={absoluteUrl(`/produk/${product.id}`)} />
+            <ProductInquiry
+              productId={product.id}
+              stockStatus={product.stockStatus}
+              title={product.title}
+              whatsapp={whatsapp}
+            />
+            <ProductShare title={product.title} url={absoluteUrl(`/produk/${product.slug}`)} />
 
             <div className="mt-8 border-t border-line pt-6">
               <h2 className="text-lg font-semibold text-ink">Tentang produk</h2>
@@ -213,14 +220,14 @@ function ProductDetail({ product }: { product: StorefrontProduct }) {
 
 // No <Suspense> above the lookup (see `ensureStatic` above).
 export default async function ProductDetailPage({ params }: ProductPageProps) {
-  const { id } = await params;
-  const { catalog, product } = await findProduct(id);
+  const { slug } = await params;
+  const [{ product, error }, store] = await Promise.all([findProduct(slug), getStoreInfo()]);
 
-  if (catalog.error) {
+  if (error) {
     return (
       <section className="bg-canvas px-4 py-12 sm:px-8">
         <div className="mx-auto max-w-3xl">
-          <CatalogError detail={catalog.error} retryHref={`/produk/${encodeURIComponent(id)}`} />
+          <CatalogError detail={error} retryHref={`/produk/${encodeURIComponent(slug)}`} />
         </div>
       </section>
     );
@@ -228,10 +235,13 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
 
   if (!product) notFound();
 
+  // Old links (/produk/8 or a renamed slug) move to the current slug for good.
+  if (product.slug !== slug) permanentRedirect(`/produk/${product.slug}`);
+
   return (
     <>
       <JsonLd data={productJsonLd(product)} />
-      <ProductDetail product={product} />
+      <ProductDetail product={product} whatsapp={store.whatsapp} />
     </>
   );
 }

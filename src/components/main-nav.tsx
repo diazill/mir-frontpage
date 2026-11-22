@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import AnimalMenu from "./animal-menu";
+import AnimalMenu, { type NavCategory } from "./animal-menu";
 
 const LINKS = [
   { href: "/produk", label: "Produk" },
@@ -25,7 +25,7 @@ export function MainNavLinks({
   categories,
   pathname,
 }: {
-  categories: string[];
+  categories: NavCategory[];
   pathname: string | null;
 }) {
   const [productLink, ...otherLinks] = LINKS;
@@ -57,6 +57,6 @@ export function MainNavLinks({
   );
 }
 
-export default function MainNav({ categories }: { categories: string[] }) {
+export default function MainNav({ categories }: { categories: NavCategory[] }) {
   return <MainNavLinks categories={categories} pathname={usePathname()} />;
 }

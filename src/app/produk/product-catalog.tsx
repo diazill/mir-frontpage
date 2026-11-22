@@ -18,9 +18,20 @@ const SORT_LABELS: Record<SortOrder, string> = {
   "price-desc": "Harga tertinggi",
 };
 
-function readFilter(value: string | null) {
-  // "Semua" came from older links; treat it as "no filter".
-  return value && value !== "Semua" ? value : "";
+/**
+ * Resolves a filter value from the URL to an option slug. Older links used
+ * names (?category=Kucing); those are matched by name. "Semua" means none.
+ * Unknown values are kept as-is so the shopper sees "0 produk" and a chip to
+ * clear, instead of a filter silently ignored.
+ */
+function resolveFacet(raw: string | null, options: FacetOption[]) {
+  if (!raw || raw === "Semua") return "";
+  const lower = raw.toLocaleLowerCase("id-ID");
+  return (
+    options.find((option) => option.value === raw)?.value ??
+    options.find((option) => option.label.toLocaleLowerCase("id-ID") === lower)?.value ??
+    raw
+  );
 }
 
 function readSort(value: string | null): SortOrder {
@@ -32,7 +43,8 @@ function readMaxPrice(value: string | null) {
   return value && Number.isFinite(price) && price > 0 ? price : null;
 }
 
-type FacetOption = { value: string; count: number };
+/** `value` is the slug used in the URL; `label` is what shoppers read. */
+export type FacetOption = { value: string; label: string; count: number };
 
 type FilterPanelProps = {
   idPrefix: string;
@@ -86,12 +98,12 @@ function FilterPanel({
               <span className="text-xs tabular-nums text-muted">{totalCount}</span>
             </button>
           </li>
-          {categories.map(({ value, count }) => (
+          {categories.map(({ value, label, count }) => (
             <li key={value}>
               <button aria-pressed={category === value} className={optionClassName(category === value)} onClick={() => onCategory(value)} type="button">
                 <span className="flex items-center gap-2">
-                  <CategoryIcon category={value} />
-                  {value}
+                  <CategoryIcon category={label} />
+                  {label}
                 </span>
                 <span className="text-xs tabular-nums text-muted">{count}</span>
               </button>
@@ -137,7 +149,7 @@ function FilterPanel({
             Brand
           </h3>
           <ul className="mt-2 space-y-0.5">
-            {brands.map(({ value, count }) => (
+            {brands.map(({ value, label, count }) => (
               <li key={value}>
                 <button
                   aria-pressed={brand === value}
@@ -145,7 +157,7 @@ function FilterPanel({
                   onClick={() => onBrand(brand === value ? "" : value)}
                   type="button"
                 >
-                  {value}
+                  {label}
                   <span className="text-xs tabular-nums text-muted">{count}</span>
                 </button>
               </li>
@@ -157,11 +169,21 @@ function FilterPanel({
   );
 }
 
-export default function ProductCatalog({ products }: { products: ProductCardData[] }) {
+export default function ProductCatalog({
+  products,
+  categories,
+  brands,
+}: {
+  products: ProductCardData[];
+  /** Categories with products, in the dashboard's order (`getShopCategories`). */
+  categories: FacetOption[];
+  /** Brands with products, sorted by name (`getBrands`). */
+  brands: FacetOption[];
+}) {
   const searchParams = useSearchParams();
   const query = searchParams.get("q") ?? "";
-  const category = readFilter(searchParams.get("category"));
-  const brand = readFilter(searchParams.get("brand"));
+  const category = resolveFacet(searchParams.get("kategori") ?? searchParams.get("category"), categories);
+  const brand = resolveFacet(searchParams.get("brand"), brands);
   const sortOrder = readSort(searchParams.get("sort"));
   const urlMaxPrice = readMaxPrice(searchParams.get("max"));
 
@@ -191,26 +213,6 @@ export default function ProductCatalog({ products }: { products: ProductCardData
     else window.history.replaceState(null, "", url);
   }
 
-  const categories = useMemo<FacetOption[]>(() => {
-    const counts = new Map<string, number>();
-    for (const product of products) {
-      if (product.category) counts.set(product.category, (counts.get(product.category) ?? 0) + 1);
-    }
-    return Array.from(counts, ([value, count]) => ({ value, count })).sort((a, b) =>
-      a.value.localeCompare(b.value, "id-ID"),
-    );
-  }, [products]);
-
-  const brands = useMemo<FacetOption[]>(() => {
-    const counts = new Map<string, number>();
-    for (const product of products) {
-      if (product.brand) counts.set(product.brand, (counts.get(product.brand) ?? 0) + 1);
-    }
-    return Array.from(counts, ([value, count]) => ({ value, count })).sort((a, b) =>
-      a.value.localeCompare(b.value, "id-ID"),
-    );
-  }, [products]);
-
   const priceRange = useMemo(() => {
     const prices = products.map((product) => product.price);
     return {
@@ -223,8 +225,8 @@ export default function ProductCatalog({ products }: { products: ProductCardData
     const normalized = normalizeQuery(query);
     const filtered = products.filter(
       (product) =>
-        (!category || product.category === category) &&
-        (!brand || product.brand === brand) &&
+        (!category || product.category?.slug === category) &&
+        (!brand || product.brand?.slug === brand) &&
         (priceCeiling === null || product.price <= priceCeiling) &&
         matchesQuery(product, normalized),
     );
@@ -249,14 +251,17 @@ export default function ProductCatalog({ products }: { products: ProductCardData
 
   const activeFilters = [
     query && { key: "q", label: `Pencarian: ${query}` },
-    category && { key: "category", label: category },
-    brand && { key: "brand", label: brand },
+    category && {
+      key: "kategori",
+      label: categories.find((option) => option.value === category)?.label ?? category,
+    },
+    brand && { key: "brand", label: brands.find((option) => option.value === brand)?.label ?? brand },
     urlMaxPrice !== null && { key: "max", label: `Maks. ${formatPrice(urlMaxPrice)}` },
   ].filter((item): item is { key: string; label: string } => Boolean(item));
 
   function clearAll() {
     setDraftMaxPrice(null);
-    updateParams({ q: null, category: null, brand: null, max: null });
+    updateParams({ q: null, kategori: null, category: null, brand: null, max: null });
   }
 
   const panelProps = {
@@ -267,7 +272,8 @@ export default function ProductCatalog({ products }: { products: ProductCardData
     totalCount: products.length,
     priceRange,
     priceCeiling,
-    onCategory: (value: string) => updateParams({ category: value || null }),
+    // Writes the new `kategori` param and drops the legacy `category` one.
+    onCategory: (value: string) => updateParams({ kategori: value || null, category: null }),
     onBrand: (value: string) => updateParams({ brand: value || null }),
     onPriceDraft: setDraftMaxPrice,
     onPriceCommit: commitPrice,
@@ -375,7 +381,7 @@ export default function ProductCatalog({ products }: { products: ProductCardData
                   className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-brand-tint py-1 pl-3 pr-2 text-sm font-medium text-brand hover:bg-brand-soft"
                   onClick={() => {
                     if (key === "max") setDraftMaxPrice(null);
-                    updateParams({ [key]: null });
+                    updateParams(key === "kategori" ? { kategori: null, category: null } : { [key]: null });
                   }}
                   type="button"
                 >

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { CategoryIcon, ChevronDownIcon } from "./icons";
 
+export type NavCategory = { name: string; slug: string };
+
 /**
  * "Hewan" disclosure menu. Opens on click or tap (not hover), closes on
  * Escape, outside click, link choice, or when the page is hidden by
@@ -13,7 +15,7 @@ export default function AnimalMenu({
   categories,
   className,
 }: {
-  categories: string[];
+  categories: NavCategory[];
   className: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -81,14 +83,14 @@ export default function AnimalMenu({
       >
         <ul className="rounded-2xl border border-line bg-surface p-2 shadow-pop">
           {categories.map((category) => (
-            <li key={category}>
+            <li key={category.slug}>
               <Link
                 className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium text-ink-soft transition-colors hover:bg-sand hover:text-brand"
-                href={`/produk?category=${encodeURIComponent(category)}`}
+                href={`/produk?kategori=${encodeURIComponent(category.slug)}`}
                 onClick={() => setIsOpen(false)}
               >
-                <CategoryIcon category={category} />
-                {category}
+                <CategoryIcon category={category.name} />
+                {category.name}
               </Link>
             </li>
           ))}

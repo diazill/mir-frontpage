@@ -22,7 +22,7 @@ import {
   useCartReady,
 } from "@/lib/cart";
 import { formatPrice, formatWeight } from "@/lib/format";
-import { whatsappLink } from "@/lib/site";
+import { whatsappHref } from "@/lib/site";
 
 type Lookup = { key: string; products: CartProduct[]; failed: boolean };
 type Fulfilment = "ambil" | "antar";
@@ -101,7 +101,8 @@ function QuantityStepper({ id, title, quantity }: { id: string; title: string; q
   );
 }
 
-export default function CartView() {
+/** `whatsapp` is the store number (digits) from `getStoreInfo()`. */
+export default function CartView({ whatsapp }: { whatsapp: string }) {
   const ready = useCartReady();
   const cart = useCart();
   const ids = Object.keys(cart).sort();
@@ -141,7 +142,8 @@ export default function CartView() {
 
   // Keep the last good lookup on screen while a quantity change refetches.
   const products = lookup?.products ?? [];
-  const byId = new Map(products.map((product) => [product.id, product]));
+  // The cart may hold ids or slugs; index by both.
+  const byId = new Map(products.flatMap((product) => [[product.id, product], [product.slug, product]] as const));
   const isLoading = Boolean(key) && lookup?.key !== key && !lookup;
   const lookupFailed = lookup?.key === key && lookup.failed;
 
@@ -246,7 +248,7 @@ export default function CartView() {
                       {product ? (
                         <>
                           {product.brand && <p className="text-xs font-semibold text-sage">{product.brand}</p>}
-                          <Link className="line-clamp-2 text-sm font-medium text-ink hover:text-brand" href={`/produk/${id}`}>
+                          <Link className="line-clamp-2 text-sm font-medium text-ink hover:text-brand" href={`/produk/${product.slug}`}>
                             {product.title}
                           </Link>
                           <p className="mt-0.5 text-xs text-muted">
@@ -378,7 +380,7 @@ export default function CartView() {
         {known.length > 0 ? (
           <a
             className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-brand px-5 text-sm font-semibold text-white transition-colors hover:bg-brand-strong"
-            href={whatsappLink(message)}
+            href={whatsappHref(whatsapp, message)}
             rel="noreferrer"
             target="_blank"
           >

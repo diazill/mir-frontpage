@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
-import SiteFooter from "@/components/site-footer";
+import { Suspense } from "react";
+import SiteFooter, { SiteFooterFallback } from "@/components/site-footer";
 import SiteHeader from "@/components/site-header";
 import {
   BASE_OPEN_GRAPH,
@@ -42,7 +43,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <main className="flex-1 outline-none" id="konten" tabIndex={-1}>
           {children}
         </main>
-        <SiteFooter />
+        <Suspense fallback={<SiteFooterFallback />}>
+          <SiteFooter />
+        </Suspense>
       </body>
     </html>
   );

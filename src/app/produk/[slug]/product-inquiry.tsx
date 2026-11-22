@@ -4,16 +4,19 @@ import Link from "next/link";
 import { useEffect, useId, useState } from "react";
 import { CartIcon, CheckIcon, MinusIcon, PlusIcon, WhatsAppIcon } from "@/components/icons";
 import { addToCart, MAX_QUANTITY } from "@/lib/cart";
-import { whatsappLink } from "@/lib/site";
+import { whatsappHref } from "@/lib/site";
 
 export default function ProductInquiry({
   productId,
   title,
   stockStatus,
+  whatsapp,
 }: {
   productId: string;
   title: string;
   stockStatus: "tersedia" | "habis";
+  /** Store WhatsApp number (digits) from `getStoreInfo()`. */
+  whatsapp: string;
 }) {
   const [quantity, setQuantity] = useState(1);
   const [addedCount, setAddedCount] = useState<number | null>(null);
@@ -82,7 +85,7 @@ export default function ProductInquiry({
             Tambah ke keranjang
           </button>
         )}
-        <a className={whatsappClassName} href={whatsappLink(message)} rel="noreferrer" target="_blank">
+        <a className={whatsappClassName} href={whatsappHref(whatsapp, message)} rel="noreferrer" target="_blank">
           <WhatsAppIcon />
           {inStock ? "Tanya" : "Tanya kapan tersedia"}
         </a>

@@ -1,8 +1,9 @@
 import type { NextRequest } from "next/server";
-import { getStorefrontCatalog } from "@/lib/catalog";
+import { getProductsByKeys } from "@/lib/catalog";
 
 export type CartProduct = {
   id: string;
+  slug: string;
   title: string;
   brand: string | null;
   weightGram: number;
@@ -25,16 +26,15 @@ export async function GET(request: NextRequest) {
   }
   if (ids.length === 0) return Response.json({ products: [] });
 
-  const { products, error } = await getStorefrontCatalog();
+  // Only the products in this cart, via ?ids= / ?slugs= (old slugs included).
+  const { products, error } = await getProductsByKeys(ids);
   if (error) return Response.json({ error: "Katalog sedang tidak bisa dimuat." }, { status: 503 });
 
-  const wanted = new Set(ids);
-  const found: CartProduct[] = products
-    .filter((product) => wanted.has(product.id))
-    .map(({ id, title, brand, weightGram, price, image, stockStatus }) => ({
+  const found: CartProduct[] = products.map(({ id, slug, title, brand, weightGram, price, image, stockStatus }) => ({
       id,
+      slug,
       title,
-      brand,
+      brand: brand?.name ?? null,
       weightGram,
       price,
       image,

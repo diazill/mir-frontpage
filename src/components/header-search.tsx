@@ -9,9 +9,10 @@ import { CategoryIcon, SearchIcon } from "./icons";
 
 export type SearchSuggestion = {
   id: string;
+  slug: string;
   title: string;
   brand: string | null;
-  category: string;
+  category: string | null;
   price: number;
   image: string | null;
 };
@@ -111,7 +112,7 @@ export default function HeaderSearch() {
 
   function openProduct(product: SearchSuggestion) {
     close();
-    router.push(`/produk/${product.id}`);
+    router.push(`/produk/${product.slug}`);
   }
 
   return (
@@ -215,7 +216,7 @@ export default function HeaderSearch() {
                     width={44}
                   />
                 ) : (
-                  <CategoryIcon category={product.category} />
+                  <CategoryIcon category={product.category ?? ""} />
                 )}
               </span>
               <span className="min-w-0 flex-1">

@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
-export type MarqueeBrand = { name: string; logo: string | null; count: number };
+export type MarqueeBrand = { name: string; slug: string; logo: string | null; count: number };
 
 // One copy of the strip must be wider than the screen for the loop to be
 // seamless, so short brand lists are repeated.
@@ -32,7 +32,7 @@ export default function BrandMarquee({ brands }: { brands: MarqueeBrand[] }) {
                 <Link
                   aria-label={`${brand.name}, ${brand.count} produk`}
                   className="flex h-20 min-w-28 items-center justify-center rounded-xl px-2 transition-transform hover:scale-105"
-                  href={`/produk?brand=${encodeURIComponent(brand.name)}`}
+                  href={`/produk?brand=${encodeURIComponent(brand.slug)}`}
                   tabIndex={isRepeat ? -1 : undefined}
                 >
                   {brand.logo ? (
@@ -41,6 +41,7 @@ export default function BrandMarquee({ brands }: { brands: MarqueeBrand[] }) {
                       className="h-14 w-auto max-w-40 object-contain"
                       height={56}
                       src={brand.logo}
+                      unoptimized
                       width={160}
                     />
                   ) : (

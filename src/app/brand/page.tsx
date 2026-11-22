@@ -4,9 +4,8 @@ import Link from "next/link";
 import { Suspense } from "react";
 import Breadcrumb from "@/components/breadcrumb";
 import CatalogError from "@/components/catalog-error";
-import { brandLogo, countBrands } from "@/lib/brands";
-import { getStorefrontCatalog } from "@/lib/catalog";
-
+import { brandLogo } from "@/lib/brands";
+import { getBrands } from "@/lib/catalog";
 
 export const metadata: Metadata = {
   title: "Merek Pakan",
@@ -16,10 +15,11 @@ export const metadata: Metadata = {
 };
 
 async function BrandGrid() {
-  const { products, error } = await getStorefrontCatalog();
+  const { brands: all, error } = await getBrands();
   if (error) return <CatalogError detail={error} retryHref="/brand" />;
 
-  const brands = countBrands(products).sort((a, b) => a.name.localeCompare(b.name, "id-ID"));
+  // Brands without active products would lead to an empty catalog page.
+  const brands = all.filter((brand) => brand.productCount > 0);
 
   if (brands.length === 0) {
     return (
@@ -31,13 +31,14 @@ async function BrandGrid() {
 
   return (
     <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
-      {brands.map(({ name, count }) => {
-        const logo = brandLogo(name);
+      {brands.map((brand) => {
+        const { name, slug, productCount: count } = brand;
+        const logo = brandLogo(brand);
         return (
-          <li key={name}>
+          <li key={slug}>
             <Link
               className="group flex min-h-44 flex-col items-center justify-between rounded-2xl border border-line bg-surface p-5 text-center transition-[border-color,box-shadow] hover:border-line-strong hover:shadow-card sm:min-h-52 sm:p-6"
-              href={`/produk?brand=${encodeURIComponent(name)}`}
+              href={`/produk?brand=${encodeURIComponent(slug)}`}
             >
               <span className="flex h-24 w-full items-center justify-center sm:h-28">
                 {logo ? (
@@ -46,6 +47,7 @@ async function BrandGrid() {
                     className="max-h-full w-auto max-w-[85%] object-contain transition-transform duration-200 group-hover:scale-105"
                     height={112}
                     src={logo}
+                    unoptimized
                     width={220}
                   />
                 ) : (

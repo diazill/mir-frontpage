@@ -3,10 +3,10 @@ import type { Metadata } from "next";
 import Breadcrumb from "@/components/breadcrumb";
 import CatalogError from "@/components/catalog-error";
 import { ProductGridSkeleton, type ProductCardData } from "@/components/product-card";
-import { getStorefrontCatalog } from "@/lib/catalog";
-import ProductCatalog from "./product-catalog";
+import { getBrands, getShopCategories, getStorefrontCatalog } from "@/lib/catalog";
+import ProductCatalog, { type FacetOption } from "./product-catalog";
 
-// Filtered views (?q=, ?category=, ?brand=) canonicalize to the full catalog
+// Filtered views (?q=, ?kategori=, ?brand=) canonicalize to the full catalog
 // so search engines don't index every filter combination as its own page.
 export const metadata: Metadata = {
   title: "Semua Produk",
@@ -29,14 +29,43 @@ function CatalogSkeleton() {
   );
 }
 
+function facetsFrom(values: ({ slug: string; name: string } | null)[]): FacetOption[] {
+  const facets = new Map<string, FacetOption>();
+  for (const value of values) {
+    if (!value) continue;
+    const facet = facets.get(value.slug) ?? { value: value.slug, label: value.name, count: 0 };
+    facet.count += 1;
+    facets.set(value.slug, facet);
+  }
+  return [...facets.values()];
+}
+
 async function Catalog() {
-  const { products, error } = await getStorefrontCatalog();
+  const [{ products, error }, { categories }, { brands }] = await Promise.all([
+    getStorefrontCatalog(),
+    getShopCategories(),
+    getBrands(),
+  ]);
   if (error) return <CatalogError detail={error} retryHref="/produk" />;
+
+  // Filters list what the API reports; if those lists fail, the catalog still
+  // works, with facets derived from the products themselves.
+  const categoryOptions: FacetOption[] = categories.length
+    ? categories.map(({ slug, name, productCount }) => ({ value: slug, label: name, count: productCount }))
+    : facetsFrom(products.map((product) => product.category));
+  const brandOptions: FacetOption[] = (
+    brands.length
+      ? brands
+          .filter((brand) => brand.productCount > 0)
+          .map(({ slug, name, productCount }) => ({ value: slug, label: name, count: productCount }))
+      : facetsFrom(products.map((product) => product.brand))
+  ).toSorted((a, b) => a.label.localeCompare(b.label, "id-ID"));
 
   // Only what the cards and filters need goes to the browser.
   const cards: ProductCardData[] = products.map(
-    ({ id, title, brand, category, weightGram, price, image, stockStatus, badge }) => ({
+    ({ id, slug, title, brand, category, weightGram, price, image, stockStatus, badge }) => ({
       id,
+      slug,
       title,
       brand,
       category,
@@ -51,7 +80,7 @@ async function Catalog() {
   // ProductCatalog reads filters from the URL, so it renders on the client.
   return (
     <Suspense fallback={<CatalogSkeleton />}>
-      <ProductCatalog products={cards} />
+      <ProductCatalog brands={brandOptions} categories={categoryOptions} products={cards} />
     </Suspense>
   );
 }

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { MailIcon, PhoneIcon, WhatsAppIcon } from "@/components/icons";
-import { STORE, STORE_FULL_ADDRESS, STORE_HOURS_SUMMARY } from "@/lib/site";
+import type { StoreInfo } from "@/lib/site";
+import { getStoreInfo } from "@/lib/store";
 
 export const metadata: Metadata = {
   title: "Kontak",
@@ -10,40 +11,45 @@ export const metadata: Metadata = {
   alternates: { canonical: "/kontak" },
 };
 
-const channels = [
-  {
-    title: "WhatsApp",
-    detail: STORE.phoneDisplay,
-    note: "Paling cepat untuk tanya stok, harga, dan pesan antar.",
-    href: STORE.whatsappUrl,
-    action: "Chat sekarang",
-    external: true,
-    icon: WhatsAppIcon,
-  },
-  {
-    title: "Telepon",
-    detail: STORE.phoneDisplay,
-    note: `Kami angkat telepon pada jam buka: ${STORE_HOURS_SUMMARY}.`,
-    href: `tel:${STORE.phone}`,
-    action: "Telepon toko",
-    external: false,
-    icon: PhoneIcon,
-  },
-  {
-    title: "Email",
-    detail: STORE.email,
-    note: "Untuk pertanyaan yang tidak mendesak atau tawaran kerja sama.",
-    href: `mailto:${STORE.email}`,
-    action: "Kirim email",
-    external: false,
-    icon: MailIcon,
-  },
-];
+function contactChannels(store: StoreInfo) {
+  return [
+    {
+      title: "WhatsApp",
+      detail: store.phoneDisplay,
+      note: "Paling cepat untuk tanya stok, harga, dan pesan antar.",
+      href: store.whatsappUrl,
+      action: "Chat sekarang",
+      external: true,
+      icon: WhatsAppIcon,
+    },
+    {
+      title: "Telepon",
+      detail: store.phoneDisplay,
+      note: `Kami angkat telepon pada jam buka: ${store.hoursSummary}.`,
+      href: `tel:${store.phone}`,
+      action: "Telepon toko",
+      external: false,
+      icon: PhoneIcon,
+    },
+    {
+      title: "Email",
+      detail: store.email,
+      note: "Untuk pertanyaan yang tidak mendesak atau tawaran kerja sama.",
+      href: `mailto:${store.email}`,
+      action: "Kirim email",
+      external: false,
+      icon: MailIcon,
+    },
+  ];
+}
 
 const secondaryButtonClassName =
   "inline-flex min-h-11 items-center justify-center rounded-full border border-line-strong px-5 text-sm font-semibold text-brand transition-colors hover:bg-brand-tint";
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const store = await getStoreInfo();
+  const channels = contactChannels(store);
+
   return (
     <section className="bg-canvas px-4 py-12 sm:px-8 sm:py-16">
       <div className="mx-auto max-w-7xl">
@@ -82,11 +88,11 @@ export default function ContactPage() {
             <h2 className="text-lg font-semibold text-ink" id="kunjungi-toko">
               Kunjungi toko
             </h2>
-            <address className="mt-2 text-sm not-italic leading-6 text-body">{STORE_FULL_ADDRESS}</address>
-            <p className="mt-2 text-sm text-body">{STORE_HOURS_SUMMARY}</p>
+            <address className="mt-2 text-sm not-italic leading-6 text-body">{store.fullAddress}</address>
+            <p className="mt-2 text-sm text-body">{store.hoursSummary}</p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <a className={secondaryButtonClassName} href={STORE.mapsUrl} rel="noreferrer" target="_blank">
+            <a className={secondaryButtonClassName} href={store.mapsUrl} rel="noreferrer" target="_blank">
               Buka Google Maps
             </a>
             <Link className={secondaryButtonClassName} href="/lokasi">

@@ -15,7 +15,7 @@ dashboard Laravel terpisah, dan Next.js membacanya lewat API Laravel tersebut.
   maksimal, pengurutan harga, serta tombol "Muat lebih banyak". Semua filter
   tersimpan di URL, jadi hasilnya bisa dibagikan dan tombol Back bekerja.
   Di HP, filter dibuka sebagai bottom sheet.
-- **Detail produk (`/produk/[id]`):** galeri foto, harga, berat, status stok,
+- **Detail produk (`/produk/[slug]`):** galeri foto, harga, berat, status stok,
   pemilih jumlah, tambah ke keranjang, tanya lewat WhatsApp, dan tombol berbagi.
 - **Keranjang (`/keranjang`):** ubah jumlah, hapus dengan opsi batalkan, dan
   perkiraan subtotal. Harga dan stok diambil ulang dari API, bukan dari data
@@ -59,7 +59,7 @@ Browser ──► Next.js (server) ──► API Laravel ──► PostgreSQL + 
 ## Persyaratan
 
 - Node.js 20 atau lebih baru, dan npm
-- URL API Laravel yang menyediakan `GET /products` (lihat [Kontrak API](#kontrak-api))
+- URL API Laravel yang menyediakan endpoint di [Kontrak API](#kontrak-api)
 
 ## Menjalankan proyek
 
@@ -74,6 +74,10 @@ Browser ──► Next.js (server) ──► API Laravel ──► PostgreSQL + 
    ```env
    # URL API Laravel, termasuk prefix versi. Hanya dibaca di server.
    LARAVEL_API_URL=https://<domain-api>/api/v1
+
+   # Kunci dari dashboard yang menaikkan batas API untuk storefront
+   # (1.200/menit, bukan 120/menit). Hanya server; boleh dikosongkan.
+   STOREFRONT_API_KEY=<kunci-storefront>
 
    # Origin publik storefront. Dipakai untuk canonical, sitemap, Open Graph,
    # dan tautan berbagi.
@@ -122,40 +126,60 @@ src/
 │   └── sitemap.ts, robots.ts
 ├── components/                       Header, footer, kartu produk, ikon, dsb.
 └── lib/
-    ├── catalog.ts                    Pengambilan dan validasi data dari API (server only)
+    ├── catalog.ts                    Produk, kategori, brand dari API (server only)
+    ├── store.ts                      Info toko dan jadwal dari API (server only)
     ├── cart.ts                       Keranjang di localStorage
-    ├── site.ts                       Info toko dan jadwal buka
+    ├── site.ts                       Nilai cadangan toko dan helper jadwal
     ├── brands.ts, animals.ts         Peta logo brand dan ilustrasi hewan
     └── format.ts, search.ts          Format rupiah/berat dan pencocokan pencarian
 docs/
-└── kebutuhan-api-tahap-2.md          Endpoint yang dibutuhkan dari backend
+├── kebutuhan-api-tahap-2.md          Permintaan endpoint tahap 2 (sebagian besar sudah live)
+└── kebutuhan-api-tahap-2b.md         Kekurangan API yang tersisa
 public/images/                        Logo, foto toko, logo brand, ilustrasi hewan
 ```
 
 ## Kontrak API
 
-Saat ini storefront hanya memakai satu endpoint publik:
+Semua endpoint publik, hanya `GET`, dan dipanggil dari server Next.js lalu
+disimpan di cache sekitar 1 menit. Kalau `STOREFRONT_API_KEY` diisi, setiap
+request membawa header `X-Storefront-Key`. Satu build memanggil API sekitar
+13 kali, berapa pun jumlah produknya.
 
-```
-GET {LARAVEL_API_URL}/products?per_page=100&page=1
-```
+| Endpoint | Dipakai untuk |
+|---|---|
+| `GET /products?per_page=100&page=N` | Katalog, produk unggulan, prerender halaman produk, sitemap, dan pencarian. Semua halaman paginasi diambil |
+| `GET /products?ids=…` / `?slugs=…` | Harga dan stok terbaru isi keranjang (maksimal 100 per request) |
+| `GET /products/{key}` | Hanya untuk key yang tidak ada di daftar: id angka dan slug lama (untuk redirect), serta produk yang tidak ada (404) |
+| `GET /categories` | Menu Hewan, kartu belanja per hewan, dan filter katalog |
+| `GET /brands` | Halaman brand, strip logo, dan filter katalog |
+| `GET /store/public` | Nama, kontak, alamat, jadwal buka, dan libur khusus |
 
-Respons berupa paginasi Laravel (`data`, `last_page`). Semua halaman diambil,
-jadi katalog tidak terpotong di 100 produk. Field yang dipakai per produk:
+Field produk yang dipakai:
 
 | Field | Keterangan |
 |---|---|
-| `id`, `title`, `blurb` | Identitas dan deskripsi singkat |
+| `id`, `slug`, `title`, `blurb` | Identitas. URL produk memakai `slug` |
 | `price` | Harga satuan dasar dalam rupiah (integer) |
 | `weight_gram` | Berat |
 | `stock_status` | `tersedia` atau `habis` |
 | `is_best_product` | Ditampilkan sebagai "Pilihan MIR" |
-| `category.name`, `brand.name` | Untuk filter dan menu |
+| `category {name, slug}`, `brand {name, slug, logo_url}` | Filter, menu, dan logo |
 | `image`, `images[]` | Boleh kosong. Kalau kosong, kartu menampilkan placeholder |
+| `updated_at` | `lastModified` di sitemap |
 
-Data yang tidak sesuai bentuk ini ditolak dan dicatat di log server. Kebutuhan
-endpoint berikutnya (info toko, slug, detail produk, kategori, brand, dan
-satuan) ada di [docs/kebutuhan-api-tahap-2.md](docs/kebutuhan-api-tahap-2.md).
+Perilaku penting:
+
+- **URL produk:** `/produk/{slug}`. Tautan lama `/produk/8` dan slug lama
+  dialihkan permanen (HTTP 308) ke slug yang berlaku. Produk yang tidak ada
+  mengembalikan 404.
+- **URL filter:** `/produk?kategori={slug}&brand={slug}`. Tautan lama
+  `?category=Kucing` (nama) tetap dikenali.
+- **Data toko:** setiap field yang kosong di API memakai nilai cadangan di
+  `src/lib/site.ts`. Kalau API mati, situs tetap tampil dengan nilai cadangan.
+  Status "Buka sekarang" dihitung ulang di browser dari jadwal dan libur khusus.
+- Data yang tidak sesuai bentuk ditolak dan dicatat di log server.
+
+Kebutuhan API yang belum ada dicatat di [docs/](docs/).
 
 Route handler internal milik Next.js:
 
@@ -169,7 +193,7 @@ Route handler internal milik Next.js:
 - Belum ada akun pelanggan, checkout, pembayaran, atau riwayat pesanan. Fitur ini
   menunggu endpoint dari backend dan beberapa keputusan bisnis.
 - Pesanan dikirim lewat WhatsApp, dan total final dikonfirmasi oleh toko.
-- Jadwal buka masih ditulis di `src/lib/site.ts` sampai API menyediakannya.
+- Data toko diambil dari API; selama owner belum mengisinya, situs memakai nilai cadangan.
 - Status lengkap per fitur ada di [PRD-CHECKLIST.md](PRD-CHECKLIST.md).
 
 ## Aksesibilitas

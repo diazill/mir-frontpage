@@ -3,8 +3,8 @@ import Link from "next/link";
 import BrandMarquee from "@/components/brand-marquee";
 import { ArrowRightIcon, CategoryIcon } from "@/components/icons";
 import { animalIllustration } from "@/lib/animals";
-import { brandLogo, countBrands } from "@/lib/brands";
-import { getStorefrontCatalog } from "@/lib/catalog";
+import { brandLogo } from "@/lib/brands";
+import { getBrands, getShopCategories } from "@/lib/catalog";
 
 // Each animal gets one colour from the MIR palette; extra categories cycle.
 const CATEGORY_COLORS = [
@@ -16,16 +16,8 @@ const CATEGORY_COLORS = [
 
 /** Big tappable cards per animal, each with an illustration popping out. */
 export async function ShopByAnimal() {
-  const { products, error } = await getStorefrontCatalog();
-  if (error || products.length === 0) return null;
-
-  const counts = new Map<string, number>();
-  for (const product of products) {
-    if (product.category) counts.set(product.category, (counts.get(product.category) ?? 0) + 1);
-  }
-  const items = Array.from(counts, ([name, count]) => ({ name, count })).sort(
-    (a, b) => b.count - a.count || a.name.localeCompare(b.name, "id-ID"),
-  );
+  // Categories with products, in the dashboard's order.
+  const { categories: items } = await getShopCategories();
   if (items.length === 0) return null;
 
   return (
@@ -39,14 +31,14 @@ export async function ShopByAnimal() {
             items.length >= 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"
           }`}
         >
-          {items.map(({ name, count }, index) => {
+          {items.map(({ name, slug, productCount }, index) => {
             const color = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
             const illustration = animalIllustration(name);
             return (
-              <li key={name}>
+              <li key={slug}>
                 <Link
                   className={`group relative flex min-h-28 items-center gap-6 rounded-3xl ${color.card} py-4 pl-4 pr-5 text-white transition-[filter,box-shadow] hover:shadow-hero hover:brightness-110 sm:min-h-32`}
-                  href={`/produk?category=${encodeURIComponent(name)}`}
+                  href={`/produk?kategori=${encodeURIComponent(slug)}`}
                 >
                   {/* The animal is bigger than its disc, so it pops out of
                       both the disc and the top of the card. */}
@@ -68,7 +60,7 @@ export async function ShopByAnimal() {
                   </span>
                   <span className="min-w-0">
                     <span className="block text-2xl font-bold tracking-tight sm:text-3xl">{name}</span>
-                    <span className="mt-1 block text-sm text-white/85">{count} produk</span>
+                    <span className="mt-1 block text-sm text-white/85">{productCount} produk</span>
                   </span>
                   <ArrowRightIcon className="ml-auto h-6 w-6 shrink-0 transition-transform group-hover:translate-x-1" />
                 </Link>
@@ -83,12 +75,11 @@ export async function ShopByAnimal() {
 
 /** Brands in the catalog as a logo strip sliding to the right. */
 export async function FeaturedBrands() {
-  const { products, error } = await getStorefrontCatalog();
-  if (error) return null;
-
-  const brands = countBrands(products)
-    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "id-ID"))
-    .map(({ name, count }) => ({ name, count, logo: brandLogo(name) ?? null }));
+  const { brands: all } = await getBrands();
+  const brands = all
+    .filter((brand) => brand.productCount > 0)
+    .toSorted((a, b) => b.productCount - a.productCount || a.name.localeCompare(b.name, "id-ID"))
+    .map((brand) => ({ name: brand.name, slug: brand.slug, count: brand.productCount, logo: brandLogo(brand) }));
   if (brands.length === 0) return null;
 
   return (

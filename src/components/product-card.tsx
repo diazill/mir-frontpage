@@ -11,7 +11,7 @@ import { CheckIcon, ImageIcon, PlusIcon } from "./icons";
 
 export type ProductCardData = Pick<
   StorefrontProduct,
-  "id" | "title" | "brand" | "category" | "weightGram" | "price" | "image" | "stockStatus" | "badge"
+  "id" | "slug" | "title" | "brand" | "category" | "weightGram" | "price" | "image" | "stockStatus" | "badge"
 >;
 
 function AddButton({ product }: { product: ProductCardData }) {
@@ -57,7 +57,7 @@ function AddButton({ product }: { product: ProductCardData }) {
 }
 
 export default function ProductCard({ product }: { product: ProductCardData }) {
-  const href = `/produk/${product.id}`;
+  const href = `/produk/${product.slug}`;
   const inStock = product.stockStatus === "tersedia";
 
   return (
@@ -91,7 +91,7 @@ export default function ProductCard({ product }: { product: ProductCardData }) {
       <div className="flex flex-1 flex-col px-1 pt-3">
         {/* Always rendered so titles line up across cards without a brand. */}
         <p className="min-h-4 truncate text-xs font-semibold leading-4 text-sage">
-          {product.brand}
+          {product.brand?.name}
         </p>
         {/* The title link's overlay makes the whole card clickable while the
             add button stays a separate target above it. */}
@@ -105,7 +105,7 @@ export default function ProductCard({ product }: { product: ProductCardData }) {
         </p>
         <p className="mt-1.5 text-xs text-muted">
           {formatWeight(product.weightGram)}
-          {product.category && ` · ${product.category}`}
+          {product.category && ` · ${product.category.name}`}
         </p>
         <div className="mt-auto pt-3">
           {inStock ? (

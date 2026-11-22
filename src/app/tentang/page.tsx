@@ -10,7 +10,8 @@ import {
   TruckIcon,
   WhatsAppIcon,
 } from "@/components/icons";
-import { STORE, STORE_HOURS_SUMMARY } from "@/lib/site";
+import { getShopCategories } from "@/lib/catalog";
+import { getStoreInfo } from "@/lib/store";
 
 export const metadata: Metadata = {
   title: "Tentang MIR",
@@ -42,9 +43,17 @@ const services = [
   },
 ];
 
-const animals = ["Kucing", "Burung", "Unggas"];
+// Used only when the categories API is unreachable.
+const FALLBACK_ANIMALS = [
+  { name: "Kucing", slug: "kucing" },
+  { name: "Burung", slug: "burung" },
+  { name: "Unggas", slug: "unggas" },
+];
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const [store, { categories }] = await Promise.all([getStoreInfo(), getShopCategories()]);
+  const animals = categories.length ? categories : FALLBACK_ANIMALS;
+
   return (
     <div className="bg-canvas">
       <section className="px-4 py-12 sm:px-8 sm:py-16 lg:py-20">
@@ -60,7 +69,7 @@ export default function AboutPage() {
               hewan peliharaan dan unggas mereka sehari-hari.
             </p>
             <p className="mt-4 text-base leading-7 text-body">
-              Toko buka {STORE_HOURS_SUMMARY}. Di luar jam itu, kamu tetap
+              Toko buka {store.hoursSummary}. Di luar jam itu, kamu tetap
               bisa cek harga di katalog dan kirim pesan lewat WhatsApp.
             </p>
             <p className="mt-5 text-sm font-semibold tracking-wide text-brand">#MIRsayangternak</p>
@@ -125,15 +134,15 @@ export default function AboutPage() {
           </div>
           <ul className="grid grid-cols-3 gap-3 sm:gap-4">
             {animals.map((animal) => (
-              <li key={animal}>
+              <li key={animal.slug}>
                 <Link
                   className="flex flex-col items-center gap-3 rounded-3xl border border-line bg-surface px-3 py-6 text-center transition-colors hover:border-line-strong hover:bg-brand-tint sm:py-8"
-                  href={`/produk?category=${encodeURIComponent(animal)}`}
+                  href={`/produk?kategori=${encodeURIComponent(animal.slug)}`}
                 >
                   <span className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-soft text-brand">
-                    <CategoryIcon category={animal} className="h-7 w-7" />
+                    <CategoryIcon category={animal.name} className="h-7 w-7" />
                   </span>
-                  <span className="text-sm font-semibold text-ink sm:text-base">{animal}</span>
+                  <span className="text-sm font-semibold text-ink sm:text-base">{animal.name}</span>
                 </Link>
               </li>
             ))}
@@ -146,13 +155,13 @@ export default function AboutPage() {
           <div>
             <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Mau tanya stok atau harga?</h2>
             <p className="mt-2 max-w-xl text-base leading-7 text-white/80">
-              Chat tim MIR lewat WhatsApp di {STORE.phoneDisplay}.
+              Chat tim MIR lewat WhatsApp di {store.phoneDisplay}.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
             <a
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-semibold text-brand transition-colors hover:bg-brand-tint"
-              href={STORE.whatsappUrl}
+              href={store.whatsappUrl}
               rel="noreferrer"
               target="_blank"
             >

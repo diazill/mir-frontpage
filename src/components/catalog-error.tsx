@@ -1,17 +1,19 @@
-import { whatsappLink } from "@/lib/site";
+import { whatsappHref } from "@/lib/site";
+import { getStoreInfo } from "@/lib/store";
 import { WhatsAppIcon } from "./icons";
 
 /**
  * Customer-facing message when the Laravel catalog cannot be loaded.
  * The technical reason is shown only in development.
  */
-export default function CatalogError({
+export default async function CatalogError({
   detail,
   retryHref,
 }: {
   detail: string;
   retryHref: string;
 }) {
+  const store = await getStoreInfo();
   return (
     <div className="rounded-2xl border border-notice-line bg-notice-tint p-5 text-sm text-notice" role="alert">
       <p className="font-semibold text-ink">Katalog sedang tidak bisa dimuat</p>
@@ -31,7 +33,7 @@ export default function CatalogError({
         </a>
         <a
           className="inline-flex min-h-11 items-center gap-2 rounded-full bg-brand px-5 font-semibold text-white transition-colors hover:bg-brand-strong"
-          href={whatsappLink("Halo MIR, saya ingin tanya harga dan stok produk.")}
+          href={whatsappHref(store.whatsapp, "Halo MIR, saya ingin tanya harga dan stok produk.")}
           rel="noreferrer"
           target="_blank"
         >

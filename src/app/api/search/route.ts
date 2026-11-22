@@ -22,11 +22,12 @@ export async function GET(request: NextRequest) {
   const results: SearchSuggestion[] = products
     .filter((product) => matchesQuery(product, query))
     .slice(0, MAX_SUGGESTIONS)
-    .map(({ id, title, brand, category, price, image }) => ({
+    .map(({ id, slug, title, brand, category, price, image }) => ({
       id,
+      slug,
       title,
-      brand,
-      category,
+      brand: brand?.name ?? null,
+      category: category?.name ?? null,
       price,
       image,
     }));

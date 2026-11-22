@@ -1,16 +1,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
-import { getStorefrontCatalog } from "@/lib/catalog";
+import { getShopCategories } from "@/lib/catalog";
 import CartIndicator from "./cart-indicator";
 import HeaderSearch, { HeaderSearchFallback } from "./header-search";
 import MainNav, { MainNavLinks } from "./main-nav";
 
 async function NavWithCategories() {
-  const { products } = await getStorefrontCatalog();
-  const categories = Array.from(
-    new Set(products.map((product) => product.category).filter(Boolean)),
-  ).sort((a, b) => a.localeCompare(b, "id-ID"));
+  // Only categories with products, in the dashboard's order. If the API is
+  // down the menu degrades to a plain "Hewan" link to the catalog.
+  const categories = (await getShopCategories()).categories.map(({ name, slug }) => ({ name, slug }));
 
   // MainNav reads the pathname, which is unknown while prerendering product
   // ids outside generateStaticParams, so it gets its own boundary.

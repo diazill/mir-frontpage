@@ -16,7 +16,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // If the API is down, the sitemap still lists the static pages.
   const productPages: MetadataRoute.Sitemap = products.map((product) => ({
-    url: absoluteUrl(`/produk/${product.id}`),
+    url: absoluteUrl(`/produk/${product.slug}`),
+    lastModified: product.updatedAt ?? undefined,
     changeFrequency: "weekly",
     priority: 0.8,
     images: product.image ? [absoluteUrl(product.image)] : undefined,

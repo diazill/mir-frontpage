@@ -14,63 +14,64 @@ import ProductCard, { ProductGrid, ProductGridSkeleton } from "@/components/prod
 import { getStorefrontCatalog } from "@/lib/catalog";
 import JsonLd from "@/lib/json-ld";
 import { FeaturedBrands, ShopByAnimal } from "./home-sections";
-import {
-  absoluteUrl,
-  SITE_DESCRIPTION,
-  SITE_NAME,
-  STORE,
-  STORE_HOURS_SUMMARY,
-  STORE_OPENING_HOURS_SPEC,
-} from "@/lib/site";
+import { absoluteUrl, lowerFirst, openingHoursSpec, SITE_DESCRIPTION, type StoreInfo } from "@/lib/site";
+import { getStoreInfo } from "@/lib/store";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
 };
 
-const storeJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "PetStore",
-  name: SITE_NAME,
-  description: SITE_DESCRIPTION,
-  url: absoluteUrl("/"),
-  image: absoluteUrl("/images/reference/storefront.webp"),
-  logo: absoluteUrl("/images/reference/mir-logo.webp"),
-  telephone: STORE.phone,
-  email: STORE.email,
-  address: {
-    "@type": "PostalAddress",
-    streetAddress: STORE.streetAddress,
-    addressLocality: STORE.locality,
-    addressRegion: STORE.region,
-    postalCode: STORE.postalCode,
-    addressCountry: STORE.country,
-  },
-  openingHoursSpecification: STORE_OPENING_HOURS_SPEC,
-};
+function storeJsonLd(store: StoreInfo) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "PetStore",
+    name: store.name,
+    description: SITE_DESCRIPTION,
+    url: absoluteUrl("/"),
+    image: absoluteUrl("/images/reference/storefront.webp"),
+    logo: absoluteUrl("/images/reference/mir-logo.webp"),
+    telephone: store.phone,
+    email: store.email,
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: store.streetAddress,
+      addressLocality: store.locality,
+      addressRegion: store.region,
+      postalCode: store.postalCode,
+      addressCountry: store.country,
+    },
+    ...(store.latitude !== null && store.longitude !== null
+      ? { geo: { "@type": "GeoCoordinates", latitude: store.latitude, longitude: store.longitude } }
+      : {}),
+    openingHoursSpecification: openingHoursSpec(store.schedule),
+  };
+}
 
-const facts = [
-  {
-    icon: ClockIcon,
-    title: "Jam buka",
-    text: STORE_HOURS_SUMMARY,
-    href: "/lokasi",
-    external: false,
-  },
-  {
-    icon: WhatsAppIcon,
-    title: "Tanya stok dan harga",
-    text: `WhatsApp ${STORE.phoneDisplay}`,
-    href: STORE.whatsappUrl,
-    external: true,
-  },
-  {
-    icon: PinIcon,
-    title: "Alamat toko",
-    text: `${STORE.shortAddress} (sebelah ${STORE.landmark})`,
-    href: STORE.mapsUrl,
-    external: true,
-  },
-];
+function storeFacts(store: StoreInfo) {
+  return [
+    {
+      icon: ClockIcon,
+      title: "Jam buka",
+      text: store.hoursSummary,
+      href: "/lokasi",
+      external: false,
+    },
+    {
+      icon: WhatsAppIcon,
+      title: "Tanya stok dan harga",
+      text: `WhatsApp ${store.phoneDisplay}`,
+      href: store.whatsappUrl,
+      external: true,
+    },
+    {
+      icon: PinIcon,
+      title: "Alamat toko",
+      text: store.landmark ? `${store.shortAddress} (${lowerFirst(store.landmark)})` : store.shortAddress,
+      href: store.mapsUrl,
+      external: true,
+    },
+  ];
+}
 
 async function FeaturedProducts() {
   const { products, error } = await getStorefrontCatalog();
@@ -98,10 +99,13 @@ async function FeaturedProducts() {
   );
 }
 
-export default function Home() {
+export default async function Home() {
+  const store = await getStoreInfo();
+  const facts = storeFacts(store);
+
   return (
     <>
-      <JsonLd data={storeJsonLd} />
+      <JsonLd data={storeJsonLd(store)} />
 
       <section className="overflow-hidden bg-canvas">
         <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 py-12 sm:px-8 sm:py-16 md:grid-cols-[1.05fr_0.95fr] md:gap-10 lg:gap-16 lg:py-20">
@@ -173,10 +177,10 @@ export default function Home() {
                 />
               </div>
               <figcaption className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1 text-sm">
-                <span className="font-semibold text-ink-soft">Toko MIR, {STORE.shortAddress}</span>
+                <span className="font-semibold text-ink-soft">Toko MIR, {store.shortAddress}</span>
                 <a
                   className="inline-flex min-h-11 items-center gap-1 font-semibold text-brand hover:text-brand-strong"
-                  href={STORE.mapsUrl}
+                  href={store.mapsUrl}
                   rel="noreferrer"
                   target="_blank"
                 >
