@@ -9,6 +9,7 @@ import {
   type StoreDay,
   type StoreInfo,
   type StoreStatus,
+  validWhatsapp,
   WEEKDAYS,
 } from "./site";
 
@@ -85,7 +86,7 @@ function toStoreInfo(data: Record<string, unknown>): StoreInfo {
   const street = text(address?.street);
   const city = text(address?.city);
   const schedule = parseSchedule(data.schedule);
-  const whatsapp = text(data.whatsapp)?.replace(/\D/g, "") || FALLBACK_STORE.whatsapp;
+  const whatsapp = validWhatsapp(text(data.whatsapp)) ?? FALLBACK_STORE.whatsapp;
 
   return completeStoreInfo({
     name: name ?? FALLBACK_STORE.name,

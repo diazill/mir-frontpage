@@ -66,8 +66,17 @@ const FALLBACK_HOURS: StoreDay[] = WEEKDAYS.map(({ day, weekday }) =>
     : { day, weekday, opensAt: 9 * 60, closesAt: 17 * 60 },
 );
 
+/**
+ * Digits of an Indonesian mobile number with country code (62 + 8–13 digits),
+ * or null. Rejects leftovers such as "62" from a mis-filled env value.
+ */
+export function validWhatsapp(value: string | null | undefined): string | null {
+  const digits = value?.replace(/\D/g, "") ?? "";
+  return /^62\d{8,13}$/.test(digits) ? digits : null;
+}
+
 // Last resort for the WhatsApp number when the API has none.
-const ENV_WHATSAPP = process.env.NEXT_PUBLIC_STORE_WHATSAPP?.replace(/\D/g, "") || "";
+const ENV_WHATSAPP = validWhatsapp(process.env.NEXT_PUBLIC_STORE_WHATSAPP) ?? "";
 
 export const FALLBACK_STORE = {
   name: SITE_NAME,
@@ -90,6 +99,7 @@ export const FALLBACK_STORE = {
 /** 6285155428611 -> "+62 851-5542-8611" */
 export function formatPhone(digits: string) {
   const local = digits.replace(/^62/, "");
+  if (!local) return `+${digits}`;
   const parts = [local.slice(0, 3), local.slice(3, 7), local.slice(7)].filter(Boolean);
   return `+62 ${parts[0]}${parts.length > 1 ? `-${parts.slice(1).join("-")}` : ""}`;
 }
